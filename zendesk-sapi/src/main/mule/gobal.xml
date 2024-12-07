@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+	
+	<http:listener-config name="zendesk-sapi-httpListenerConfig">
+        <http:listener-connection host="${http.listener.host}" port="${http.listener.port}" />
+    </http:listener-config>
+    <apikit:config name="zendesk-sapi-config" api="zendesk-sapi.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+	<http:request-config name="HTTP_Request_configuration_Calling_Zendesk_Api" doc:name="HTTP Request configuration" doc:id="8cc5edd8-ac80-46ae-ab3e-9fa6d67d3218" basePath="/api/v2">
+		<http:request-connection protocol="HTTPS" host="duckduckgo414.zendesk.com">
+			<http:authentication >
+				<http:basic-authentication username="indienaag@duck.com/token" password="qJzcyLZF6YhJgcjYZFW4Q9WxCtn13APCkOjBMq3m" />
+			</http:authentication>
+		</http:request-connection>
+	</http:request-config>
+	<configuration-properties doc:name="Configuration properties" doc:id="e02ec0dc-2e8b-429a-9df4-088b39208669" file="properties\config-${env}.yaml" />
+	
+</mule>

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<flow name="update-ticketsFlow" doc:id="9c514e2e-f97b-4830-accc-d33a0e13af50" >
+		<logger level="INFO" doc:name="Flow Start Logger" doc:id="170ebf65-d72d-46b6-a886-ee24bf301393" message="initial logger"/>
+		<logger level="INFO" doc:name="Original Payload" doc:id="f79cf158-0bef-49c4-ae93-d8fa7cbcdf0e" message="Update Tickets Original Payload #[payload]"/>
+		<ee:transform doc:name="Set Request Payload" doc:id="9365f020-1999-4f03-8f0d-9b5250398204" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="userid" ><![CDATA[payload.userId]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<http:request method="GET" doc:name="Calling Zendesk Api" doc:id="2bfc70d8-a813-4f78-8888-4d3798e2928d" config-ref="HTTP_Request_configuration_Calling_Zendesk_Api" path="/users/{user_id}/tickets/requested">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"user_id" : vars.userid
+}]]]></http:uri-params>
+		</http:request>
+		<logger level="INFO" doc:name="Log Response After Calling Zendesk" doc:id="879747ca-dd5f-410e-ad49-8022659f3926" message=" Response After Calling zendesk: #[output json --- payload]"/>
+		<ee:transform doc:name="Filter Zendesk Api Response" doc:id="4875acd7-1756-4054-b20b-40ca5c56c11d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload.tickets filter $.status != "solved"]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Log Response After Filtering " doc:id="e9a314a4-8a72-4f7e-9d1c-2ff762213e7e" message="Zendesk Response After Filtering: #[payload]"/>
+		<foreach doc:name="For Each" doc:id="6a1360c4-c8e9-4db9-9f6e-6ca6268dd0ed" >
+			<ee:transform doc:name="Set Request Attributes" doc:id="09923852-a32b-425c-af70-8d023e7a64a0">
+				<ee:message>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="ticket_id"><![CDATA[payload.id]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<http:request method="PUT" doc:name="Calling Zendesk Api" doc:id="f3dea6bf-4809-4f9f-8350-4c905f9795ca" config-ref="HTTP_Request_configuration_Calling_Zendesk_Api" path="/tickets/{id}/tags">
+				<http:body ><![CDATA[#[{
+    "tags": vars.tag,
+    
+    "updated_stamp": now()
+}]]]></http:body>
+				<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.ticket_id
+}]]]></http:uri-params>
+			</http:request>
+		</foreach>
+		<ee:transform doc:name="Map Response" doc:id="755a4b95-9976-4dd8-95a6-c7fdf6c5d386" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"success": true,
+	"transactionId": vars.correlationId,
+	"message": "Tags has been added to user"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="false" doc:name="On Error Propagate" doc:id="ad8cdefa-eb73-4499-9a7f-6ac7aa1c4161" when="#[error != null]">
+				<ee:transform doc:name="Transform Message" doc:id="07a3f3cd-d51f-4922-8ea3-cf8065100258" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	success: false,
+	transactionId: vars.correlationId,
+	reason: if(error.errorMessage.payload is Object) error.errorMessage.payload else error.description
+}
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+		
+	</flow>
+</mule>
